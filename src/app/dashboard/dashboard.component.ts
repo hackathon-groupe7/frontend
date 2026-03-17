@@ -8,74 +8,37 @@ import {
 } from '@angular/forms';
 import { startWith } from 'rxjs';
 
-type ResourceFormValue = {
-  consumption: number;
-  target: number;
-  unitCost: number;
-};
+import { RESOURCES, ResourceDefinition } from '../resources/resource-definitions';
 
-type ResourceDefinition = {
-  key: 'electricity' | 'water' | 'gas' | 'waste';
-  label: string;
-  unit: string;
-  consumptionMax: number;
-  targetMax: number;
-  step: number;
-  defaultValue: ResourceFormValue;
-};
-
-const RESOURCES: readonly ResourceDefinition[] = [
-  {
-    key: 'electricity',
-    label: 'Électricité',
-    unit: 'kWh',
-    consumptionMax: 25000,
-    targetMax: 25000,
-    step: 50,
-    defaultValue: { consumption: 6800, target: 7500, unitCost: 0.22 }
-  },
-  {
-    key: 'water',
-    label: 'Eau',
-    unit: 'm³',
-    consumptionMax: 1200,
-    targetMax: 1200,
-    step: 5,
-    defaultValue: { consumption: 180, target: 200, unitCost: 4.0 }
-  },
-  {
-    key: 'gas',
-    label: 'Gaz',
-    unit: 'kWh',
-    consumptionMax: 40000,
-    targetMax: 40000,
-    step: 100,
-    defaultValue: { consumption: 12500, target: 12000, unitCost: 0.11 }
-  },
-  {
-    key: 'waste',
-    label: 'Déchets',
-    unit: 'kg',
-    consumptionMax: 10000,
-    targetMax: 10000,
-    step: 25,
-    defaultValue: { consumption: 950, target: 800, unitCost: 0.2 }
-  }
-] as const;
+// Resource definitions are shared with other views (e.g. Account stats).
 
 @Component({
   selector: 'app-dashboard',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ReactiveFormsModule, CurrencyPipe, DecimalPipe],
   template: `
-    <div class="mx-auto flex min-h-dvh w-full max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6">
+    <div
+      class="relative mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6"
+      aria-label="Dashboard"
+    >
+      <div class="pointer-events-none absolute inset-0 -z-10" aria-hidden="true">
+        <div
+          class="absolute -left-24 -top-24 h-72 w-72 rounded-full bg-emerald-200/25 blur-3xl"
+        ></div>
+        <div
+          class="absolute -right-24 top-24 h-80 w-80 rounded-full bg-amber-200/25 blur-3xl"
+        ></div>
+        <div
+          class="absolute inset-x-0 top-0 h-48 bg-linear-to-b from-white/70 via-slate-50/40 to-transparent"
+        ></div>
+      </div>
+
       <header class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div class="space-y-1">
-          <h1 class="text-pretty text-2xl font-semibold tracking-tight sm:text-3xl">
-            Dashboard de consommation
-          </h1>
+          <h1 class="text-pretty text-2xl font-semibold tracking-tight sm:text-3xl">Dashboard</h1>
           <p class="text-sm text-slate-600">
-            Ajustez la consommation, l’objectif et le coût unitaire pour chaque ressource.
+            Pilotez vos ressources comme un petit territoire : la plaine (sobriété) et la ville
+            (activité) doivent rester en équilibre.
           </p>
         </div>
 
@@ -91,7 +54,165 @@ const RESOURCES: readonly ResourceDefinition[] = [
       </header>
 
       <section
-        class="grid grid-cols-1 gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:grid-cols-3"
+        class="overflow-hidden rounded-xl border border-slate-200 bg-white/80 shadow-sm backdrop-blur"
+        aria-label="Illustration ludique"
+      >
+        <div class="grid grid-cols-1 gap-0 sm:grid-cols-2">
+          <div class="flex flex-col gap-2 p-5">
+            <p class="text-xs font-medium uppercase tracking-wide text-slate-500">Scène</p>
+            <p class="text-sm text-slate-700">
+              Une lecture rapide :
+              <span class="font-medium text-slate-900">plaine</span> = objectifs,
+              <span class="font-medium text-slate-900">immeubles</span> = consommation.
+            </p>
+            <p class="text-xs text-slate-600">
+              Astuce : utilisez les sliders pour tester des scénarios.
+            </p>
+          </div>
+
+          <div class="border-t border-slate-200 bg-linear-to-br from-emerald-50 via-white to-amber-50 sm:border-l sm:border-t-0">
+            <svg
+              class="h-40 w-full"
+              viewBox="0 0 900 260"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+            >
+              <!-- horizon -->
+              <path
+                d="M20 170 C120 120, 220 210, 320 160 C420 110, 520 210, 620 165 C720 120, 800 155, 880 140"
+                class="text-slate-900"
+                stroke="currentColor"
+                stroke-opacity="0.25"
+                stroke-width="3"
+                stroke-linecap="round"
+              />
+
+              <!-- plains (left) -->
+              <g class="text-emerald-700">
+                <path
+                  d="M40 210 C100 180, 160 235, 220 205 C280 175, 330 220, 390 200"
+                  stroke="currentColor"
+                  stroke-opacity="0.6"
+                  stroke-width="3"
+                  stroke-linecap="round"
+                />
+                <path
+                  d="M60 230 C120 205, 175 250, 240 225 C305 200, 350 245, 420 220"
+                  stroke="currentColor"
+                  stroke-opacity="0.35"
+                  stroke-width="3"
+                  stroke-linecap="round"
+                />
+
+                <!-- small windmill -->
+                <path
+                  d="M170 120 L170 200"
+                  stroke="currentColor"
+                  stroke-opacity="0.65"
+                  stroke-width="3"
+                  stroke-linecap="round"
+                />
+                <path
+                  d="M170 140 L135 125"
+                  stroke="currentColor"
+                  stroke-opacity="0.65"
+                  stroke-width="3"
+                  stroke-linecap="round"
+                />
+                <path
+                  d="M170 140 L205 125"
+                  stroke="currentColor"
+                  stroke-opacity="0.65"
+                  stroke-width="3"
+                  stroke-linecap="round"
+                />
+                <path
+                  d="M170 140 L150 165"
+                  stroke="currentColor"
+                  stroke-opacity="0.65"
+                  stroke-width="3"
+                  stroke-linecap="round"
+                />
+                <path
+                  d="M170 140 L190 165"
+                  stroke="currentColor"
+                  stroke-opacity="0.65"
+                  stroke-width="3"
+                  stroke-linecap="round"
+                />
+              </g>
+
+              <!-- buildings (right) -->
+              <g class="text-amber-700">
+                <rect
+                  x="560"
+                  y="95"
+                  width="64"
+                  height="120"
+                  rx="6"
+                  stroke="currentColor"
+                  stroke-opacity="0.65"
+                  stroke-width="3"
+                />
+                <rect
+                  x="640"
+                  y="60"
+                  width="78"
+                  height="155"
+                  rx="6"
+                  stroke="currentColor"
+                  stroke-opacity="0.65"
+                  stroke-width="3"
+                />
+                <rect
+                  x="734"
+                  y="110"
+                  width="52"
+                  height="105"
+                  rx="6"
+                  stroke="currentColor"
+                  stroke-opacity="0.65"
+                  stroke-width="3"
+                />
+                <path
+                  d="M550 215 H805"
+                  stroke="currentColor"
+                  stroke-opacity="0.3"
+                  stroke-width="3"
+                  stroke-linecap="round"
+                />
+
+                <!-- simple windows -->
+                <path
+                  d="M578 118 H606 M578 140 H606 M578 162 H606 M578 184 H606"
+                  stroke="currentColor"
+                  stroke-opacity="0.22"
+                  stroke-width="3"
+                  stroke-linecap="round"
+                />
+                <path
+                  d="M660 86 H700 M660 108 H700 M660 130 H700 M660 152 H700 M660 174 H700"
+                  stroke="currentColor"
+                  stroke-opacity="0.22"
+                  stroke-width="3"
+                  stroke-linecap="round"
+                />
+                <path
+                  d="M748 132 H772 M748 154 H772 M748 176 H772"
+                  stroke="currentColor"
+                  stroke-opacity="0.22"
+                  stroke-width="3"
+                  stroke-linecap="round"
+                />
+              </g>
+            </svg>
+          </div>
+        </div>
+      </section>
+
+      <section
+        class="grid grid-cols-1 gap-4 rounded-xl border border-slate-200 bg-white/80 p-5 shadow-sm backdrop-blur sm:grid-cols-3"
         aria-label="Synthèse"
       >
         <div class="space-y-1">
@@ -122,7 +243,7 @@ const RESOURCES: readonly ResourceDefinition[] = [
         <div formArrayName="resources" class="contents">
           @for (resource of resources; track resource.key; let i = $index) {
             <section
-              class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
+              class="rounded-xl border border-slate-200 bg-white/80 p-5 shadow-sm backdrop-blur"
               [attr.aria-labelledby]="'resource-title-' + resource.key"
               [formGroupName]="i"
             >

@@ -16,7 +16,7 @@ import { AuthService } from './auth.service';
         <p class="text-sm text-slate-600">Connectez-vous pour accéder au dashboard.</p>
       </header>
 
-      <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section class="rounded-xl border border-slate-200 bg-white/80 p-5 shadow-sm backdrop-blur">
         <form class="space-y-4" [formGroup]="form" (ngSubmit)="submit()" aria-label="Formulaire de connexion">
           <div class="space-y-1">
             <label class="text-sm font-medium text-slate-900" for="email">Email</label>
@@ -66,7 +66,7 @@ import { AuthService } from './auth.service';
 
           <button
             type="submit"
-            class="inline-flex w-full items-center justify-center rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+            class="inline-flex w-full items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
             [disabled]="loading() || form.invalid"
           >
             @if (loading()) {<span>Connexion…</span>} @else {<span>Se connecter</span>}
@@ -118,6 +118,8 @@ export class LoginComponent {
     }
 
     this.loading.set(true);
+
+    this.auth.rememberEmail(this.form.controls.email.value);
 
     this.auth
       .login(this.form.getRawValue())

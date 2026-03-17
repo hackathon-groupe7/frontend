@@ -27,6 +27,13 @@ export const routes: Routes = [
 			import('./dashboard/dashboard.component').then((m) => m.DashboardComponent)
 	},
 	{
+		path: 'account',
+		title: 'Compte',
+		canActivate: [authGuard],
+		loadComponent: () =>
+			import('./account/account.component').then((m) => m.AccountComponent)
+	},
+	{
 		path: '**',
 		redirectTo: 'dashboard'
 	}

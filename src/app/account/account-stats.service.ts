@@ -1,149 +1,69 @@
 import { computed, inject, Injectable } from '@angular/core';
 
 import { AuthService } from '../auth/auth.service';
-import { RESOURCES } from '../resources/resource-definitions';
+import { CarbonHistoryService } from '../carbon/carbon-history.service';
 
-type ResourceSnapshot = {
+type CategorySnapshot = {
   key: string;
   label: string;
-  unit: string;
-  consumption: number;
-  target: number;
-  unitCost: number;
-  monthlyCost: number;
-  monthlyTargetCost: number;
-  isOverTarget: boolean;
+  tCo2e: number;
+  sharePercent: number;
 };
 
 export type AccountStatsSnapshot = {
   email: string | null;
-  months: readonly string[];
-  totalMonthlyCostSeries: readonly number[];
-  totalMonthlyTargetCostSeries: readonly number[];
-  resourceCostShare: readonly { label: string; monthlyCost: number }[];
-  current: {
-    totalMonthlyCost: number;
-    totalMonthlyTargetCost: number;
-    overTargetCount: number;
-    perResource: readonly ResourceSnapshot[];
-  };
+  hasHistory: boolean;
+  historyCount: number;
+  labels: readonly string[];
+  totalSeriesTco2e: readonly number[];
+  latest: {
+    siteName: string;
+    createdAtIso: string;
+    totalTco2e: number;
+    intensityKgCo2ePerM2: number | null;
+    categories: readonly CategorySnapshot[];
+  } | null;
 };
 
 @Injectable({ providedIn: 'root' })
 export class AccountStatsService {
   private readonly auth = inject(AuthService);
+  private readonly historyService = inject(CarbonHistoryService);
 
   readonly snapshot = computed<AccountStatsSnapshot>(() => {
     const email = this.auth.getRememberedEmail();
-    const seed = email ?? 'anonymous';
+    const history = this.historyService.history();
 
-    const months = this.buildMonthLabels(6);
+    const last = history.length > 0 ? history[history.length - 1] : null;
+    const trimmed = history.slice(Math.max(0, history.length - 12));
 
-    const perResourceSeries = RESOURCES.map((resource) => {
-      const baseMonthlyCost = resource.defaultValue.consumption * resource.defaultValue.unitCost;
-      const baseMonthlyTargetCost = resource.defaultValue.target * resource.defaultValue.unitCost;
-
-      const monthlyCosts = months.map((_m, idx) => {
-        const jitter = this.seededFactor(`${seed}:${resource.key}:${idx}`);
-        return Math.max(0, baseMonthlyCost * jitter);
-      });
-
-      const monthlyTargetCosts = months.map((_m, idx) => {
-        const jitter = this.seededFactor(`${seed}:target:${resource.key}:${idx}`);
-        return Math.max(0, baseMonthlyTargetCost * jitter);
-      });
-
-      return {
-        resource,
-        monthlyCosts,
-        monthlyTargetCosts
-      };
-    });
-
-    const totalMonthlyCostSeries = months.map((_m, idx) =>
-      perResourceSeries.reduce((sum, series) => sum + series.monthlyCosts[idx], 0)
+    const labels = trimmed.map((s) =>
+      new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit' }).format(
+        new Date(s.createdAtIso)
+      )
     );
-
-    const totalMonthlyTargetCostSeries = months.map((_m, idx) =>
-      perResourceSeries.reduce((sum, series) => sum + series.monthlyTargetCosts[idx], 0)
-    );
-
-    const currentPerResource: ResourceSnapshot[] = RESOURCES.map((resource) => {
-      const consumption = resource.defaultValue.consumption;
-      const target = resource.defaultValue.target;
-      const unitCost = resource.defaultValue.unitCost;
-      const monthlyCost = consumption * unitCost;
-      const monthlyTargetCost = target * unitCost;
-
-      return {
-        key: resource.key,
-        label: resource.label,
-        unit: resource.unit,
-        consumption,
-        target,
-        unitCost,
-        monthlyCost,
-        monthlyTargetCost,
-        isOverTarget: target > 0 && consumption > target
-      };
-    });
-
-    const totalMonthlyCost = currentPerResource.reduce((sum, r) => sum + r.monthlyCost, 0);
-    const totalMonthlyTargetCost = currentPerResource.reduce(
-      (sum, r) => sum + r.monthlyTargetCost,
-      0
-    );
-    const overTargetCount = currentPerResource.reduce(
-      (sum, r) => (r.isOverTarget ? sum + 1 : sum),
-      0
-    );
-
-    const resourceCostShare = currentPerResource.map((r) => ({
-      label: r.label,
-      monthlyCost: r.monthlyCost
-    }));
+    const totalSeriesTco2e = trimmed.map((s) => s.result.totalTCo2e);
 
     return {
       email,
-      months,
-      totalMonthlyCostSeries,
-      totalMonthlyTargetCostSeries,
-      resourceCostShare,
-      current: {
-        totalMonthlyCost,
-        totalMonthlyTargetCost,
-        overTargetCount,
-        perResource: currentPerResource
-      }
+      hasHistory: history.length > 0,
+      historyCount: history.length,
+      labels,
+      totalSeriesTco2e,
+      latest: last
+        ? {
+            siteName: last.inputs.siteName,
+            createdAtIso: last.createdAtIso,
+            totalTco2e: last.result.totalTCo2e,
+            intensityKgCo2ePerM2: last.result.intensityKgCo2ePerM2,
+            categories: last.result.categories.map((c) => ({
+              key: c.key,
+              label: c.label,
+              tCo2e: c.tCo2e,
+              sharePercent: c.sharePercent
+            }))
+          }
+        : null
     };
   });
-
-  private buildMonthLabels(count: number): readonly string[] {
-    const formatter = new Intl.DateTimeFormat('fr-FR', { month: 'short' });
-    const now = new Date();
-
-    const months: string[] = [];
-    for (let i = count - 1; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const label = formatter.format(d);
-      months.push(label.charAt(0).toUpperCase() + label.slice(1));
-    }
-
-    return months;
-  }
-
-  private seededFactor(key: string): number {
-    const h = this.hashString(key);
-    const normalized = (h % 1000) / 1000;
-    return 0.9 + normalized * 0.25;
-  }
-
-  private hashString(value: string): number {
-    let hash = 0;
-    for (let i = 0; i < value.length; i++) {
-      hash = (hash * 31 + value.charCodeAt(i)) | 0;
-    }
-
-    return Math.abs(hash);
-  }
 }

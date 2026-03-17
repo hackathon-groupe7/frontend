@@ -21,7 +21,7 @@ export const routes: Routes = [
 	},
 	{
 		path: 'dashboard',
-		title: 'Dashboard – Consommation',
+		title: 'Dashboard – Empreinte carbone',
 		canActivate: [authGuard],
 		loadComponent: () =>
 			import('./dashboard/dashboard.component').then((m) => m.DashboardComponent)
